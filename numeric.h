@@ -16,6 +16,8 @@ private:
 		qd16[32], qd17[34], qd18[36], qd19[38], qd20[40];
 	static const double lqd1[10], lqd2[20], lqd3[30], lqd4[40];
 	static const double ellipKP[11], ellipKQ[11], ellipEP[11], ellipEQ[11];
+
+
 };
 
 #endif
