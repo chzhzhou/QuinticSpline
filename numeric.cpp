@@ -2,6 +2,18 @@
 #include "numeric.h"
 
 
+
+double(**Numeric::N[3])(double) = { Numeric::N0 ,Numeric::N1, Numeric::N2 };
+double(*Numeric::N0[1])(double) = { Numeric::N00 };
+double(*Numeric::N1[2])(double) = { Numeric::N10, Numeric::N11 };
+double(*Numeric::N2[3])(double) = { Numeric::N20, Numeric::N21, Numeric::N22 };
+double Numeric::N00(double x) { return 0; }
+double Numeric::N10(double x) { return 1. - x; }
+double Numeric::N11(double x) { return x; }
+double Numeric::N20(double x) { return (1. - x) * (1. - 2. * x); }
+double Numeric::N21(double x) { return 4. * x * (1. - x); }
+double Numeric::N22(double x) { return x * (2. * x - 1.); }
+
 const double* Numeric::qd[21] = { qd1, qd1, qd2, qd3, qd4, qd5, qd6, qd7, qd8, qd9, qd10, qd11, qd12, qd13, qd14, qd15, qd16, qd17, qd18, qd19, qd20 };
 const double* Numeric::lqd[5] = { lqd1, lqd1, lqd2, lqd3, lqd4 };
 

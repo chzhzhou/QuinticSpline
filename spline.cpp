@@ -2,6 +2,7 @@
 #include "spline.h"
 #include <Eigen\Sparse>
 #include "numeric.h"
+
 Spline& Spline::operator = (const Spline &sp) {
 	if (this == &sp)
 		return *this;
@@ -56,7 +57,7 @@ void Spline::computeCoef(Coef &x, BC bc0, BC bc1, double a0, double b0, double a
 	A.reserve(Eigen::VectorXi::Constant(A.cols(), 6));
 
 	switch (bc0) {
-	case BC::Even: {printf("Even at 0\t");
+	case BC::Even: {//printf("Even at 0\t");
 		rhs(0) = 0;
 		rhs(1) = -10.* X(0) + 10. * X(1);	
 		double h0 = _h(0);
@@ -67,7 +68,7 @@ void Spline::computeCoef(Coef &x, BC bc0, BC bc1, double a0, double b0, double a
 		A.insert(1, 3) = - h0 * h0;
 		break;
 	}	
-	case BC::Odd: {printf("Odd at 0\t");
+	case BC::Odd: {//printf("Odd at 0\t");
 		rhs(0) = 15.* X(0) - 15. * X(1);
 		rhs(1) = 0;
 		double h0 = _h(0);
@@ -89,7 +90,7 @@ void Spline::computeCoef(Coef &x, BC bc0, BC bc1, double a0, double b0, double a
 		break;
 	}
 	switch (bc1) {
-	case BC::Even: {		printf("even at 1\n");
+	case BC::Even: {		//printf("even at 1\n");
 		rhs(rhs.size() - 2) = 0;
 		rhs(rhs.size() - 1) = 10.* X(X.size() - 2) - 10. * X(X.size() - 1);
 		double hm1 = _h(_h.size()-1);
@@ -101,7 +102,7 @@ void Spline::computeCoef(Coef &x, BC bc0, BC bc1, double a0, double b0, double a
 		A.insert(A.rows() - 1, A.rows() - 1) = +3. * hm1 * hm1;
 		break;
 	}
-	case BC::Odd: {printf("odd at 1\n");
+	case BC::Odd: {//printf("odd at 1\n");
 		rhs(rhs.size() - 2) = 15.* X(X.size() - 2) - 15. * X(X.size() - 1);
 		rhs(rhs.size() - 1) = 0;
 		double hm1 = _h(_h.size() - 1);
@@ -203,7 +204,7 @@ Eigen::Vector3d Spline::d(const Coef &x, int i, double t/* order of derivative*/
 
 double Spline::localArc(int i, double t, int nqd) const {	
 	if (i < _node.rows() - 1 && i >= 0) {		
-		Eigen::Map<const Eigen::Matrix2Xd> v(Numeric::qd[nqd],  2,nqd);				
+		Eigen::Map<const Eigen::Matrix2Xd> v(Numeric::qd[nqd],  2, nqd);				
 		double arc = 0;
 		for (int k = 0; k < nqd; k++) {
 			double ab = t * v(0, k);
