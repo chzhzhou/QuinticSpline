@@ -119,6 +119,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -146,6 +147,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bem.h" />
+    <ClInclude Include="element.h" />
     <ClInclude Include="numeric.h" />
     <ClInclude Include="spline.h" />
     <ClInclude Include="stdafx.h" />
@@ -153,6 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bem.cpp" />
+    <ClCompile Include="element.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="numeric.cpp" />
     <ClCompile Include="spline.cpp" />

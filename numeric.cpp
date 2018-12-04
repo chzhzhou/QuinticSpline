@@ -1,8 +1,6 @@
 #include "stdafx.h"
 #include "numeric.h"
 
-
-
 double(**Numeric::N[3])(double) = { Numeric::N0 ,Numeric::N1, Numeric::N2 };
 double(*Numeric::N0[1])(double) = { Numeric::N00 };
 double(*Numeric::N1[2])(double) = { Numeric::N10, Numeric::N11 };

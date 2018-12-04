@@ -6,56 +6,32 @@
 #endif // !M_PI
 #include <Eigen/Core>
 #include "spline.h"
+#include "element.h"
 #include <vector>
 
-class Bem {	
-	class Element {
-		double _arc = 0;
-		Eigen::VectorXd _t;
-		Eigen::VectorXd _r, _dr, _ddr, _z, _dz, _ddz, _J, _xi;
-		Eigen::MatrixXd _basis;
-	public:
-		void init(const Spline &sp, int i, int o, int nqd);
-		const double &arc() { return _arc; };		
-		const Eigen::VectorXd &t() const { return _t; };
-		const Eigen::VectorXd &r() const { return _r; };
-		const Eigen::VectorXd &dr() const { return _dr; };
-		const Eigen::VectorXd &ddr() const { return _ddr; };
-		const Eigen::VectorXd &z() const { return _z; };
-		const Eigen::VectorXd &dz() const { return _dz; };
-		const Eigen::VectorXd &ddz() const { return _ddz; };
-		const Eigen::VectorXd &J() const { return _J; };
-		const Eigen::VectorXd &xi() const { return _xi; };
-		const Eigen::MatrixXd &basis() const { return _basis; };
-		static const Eigen::Matrix2Xd getGLQuad (int nqd);
-		static const Eigen::Matrix2Xd getLogQuad(int nqd);
-
-	};
-
-
+class Bem {
 public:
 	Bem() {};
-	std::vector<Element> e;
+	
 	void initialize(const Eigen::MatrixX2d &xy);
-	const Spline &sp() { return _sp; };
-	Eigen::VectorXd regular(double rp, double zp, const Element &e);
-
-
+	const std::vector<Element> &e() const { return _e; };
+	const Spline &sp() const { return _sp; };
+	Eigen::VectorXd regular(double rp, double zp, int idElement);	
+	Eigen::VectorXd singular(double tau, int idElement);
+	void assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D);
+	
+	
+	
 private:
-	Spline _sp;
-	//static const Eigen::VectorXd
-	void KEPKQKPEQE(
-		const Eigen::VectorXd &m,
-		Eigen::VectorXd K,
-		Eigen::VectorXd E,
-		Eigen::VectorXd PK,
-		Eigen::VectorXd QK,
-		Eigen::VectorXd PE,
-		Eigen::VectorXd QE);
-	void KEPKQKPEQE(
-		const Eigen::VectorXd &m,
-		Eigen::VectorXd K,
-		Eigen::VectorXd E);
+	std::vector<Element> _e;
+	Spline _sp;	
+	static const double eps;
+	void RKRE(const Eigen::VectorXd &m, const Eigen::VectorXd &t, double tau, Eigen::VectorXd &RK, Eigen::VectorXd &RE);
+	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK, Eigen::VectorXd &dK, Eigen::VectorXd &dE, Eigen::VectorXd &K,	Eigen::VectorXd &E);
+	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK,Eigen::VectorXd &dK,	Eigen::VectorXd &dE,Eigen::VectorXd &m);
+	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K , Eigen::VectorXd &E,	Eigen::VectorXd &PK, Eigen::VectorXd &QK,	Eigen::VectorXd &PE, Eigen::VectorXd &QE);
+	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K, Eigen::VectorXd &E);
+	
 
 public:	
 	struct Properties {		
@@ -81,14 +57,18 @@ public:
 		const int &qdOrder() { return _qdOrder; };
 		const int &indexShift() { return _indexShift; };
 		void indexShift(int i) { _indexShift = i; };			
+		void qdOrder(int i) { _qdOrder = i; };
 		void nElm(int i) { _nElm = i; };
 		void print() const;
+		static void tic() { printf("tic\n"); _timer = omp_get_wtime(); };
+		static void toc() { printf("toc ... %.ef sec\n", omp_get_wtime() - _timer); };
 	private:
 		int _nElm = 0;
 		//default
 		int _order = 2;
 		int _indexShift = 0;
 		int _qdOrder = 6;
+		static double _timer;
 	};
 	Properties settings;
 };

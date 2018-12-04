@@ -1,7 +1,7 @@
 #pragma once
 #ifndef SPLINE_H
 #define SPLINE_H
-#include <Eigen/Core>
+#include <Eigen\Core>
 
 class Spline {
 	typedef Eigen::Matrix<double, Eigen::Dynamic, 6> Coef;	

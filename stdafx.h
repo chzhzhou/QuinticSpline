@@ -12,7 +12,7 @@
 #include <Eigen/Core>
 #include <iostream>
 #include <fstream>
-
+#include "numeric.h"
 
 
 // TODO: reference additional headers your program requires here
