@@ -22,7 +22,7 @@ public:
 	//API
 	double localArc(int i, double t = 1.0, int nqd = 10) const;
 	double arc2t(int i, double arc, int nqd = 10) const;		
-	Eigen::Vector3d d(const Coef &x, int i, double t) const;
+	const Eigen::Vector3d d(const Coef &x, int i, double t) const;
 	
 
 private:

@@ -13,6 +13,8 @@
 #include <iostream>
 #include <fstream>
 #include "numeric.h"
+#include <Eigen/Dense>
+#include <omp.h>
 
 
 // TODO: reference additional headers your program requires here

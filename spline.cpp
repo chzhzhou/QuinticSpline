@@ -184,7 +184,7 @@ void Spline::computeCoef(Coef &x, BC bc0, BC bc1, double a0, double b0, double a
 	
 };
 
-Eigen::Vector3d Spline::d(const Coef &x, int i, double t/* order of derivative*/) const {
+const Eigen::Vector3d Spline::d(const Coef &x, int i, double t/* order of derivative*/) const {
 	double t2 = t * t;
 	double t3 = t * t * t;
 	double t4 = t * t * t * t;
@@ -220,7 +220,7 @@ double Spline::localArc(int i, double t, int nqd) const {
 
 double Spline::arc2t(int i, double arc, int nqd) const {
 	double x0 = 0.5;
-	double epsilon = 1e-14;
+	double epsilon = 0.5e-14;
 	double f0 = localArc(i, x0, nqd) - arc;
 	while (abs(f0) > epsilon ) {
 		double df0 = sqrt(pow((d(_x, i, x0))(1), 2.0) + pow((d(_y, i, x0))(1), 2.0));

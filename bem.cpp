@@ -2,7 +2,9 @@
 #include "bem.h"
 #include "numeric.h"
 #include <omp.h>
-
+#ifndef M_PI
+#define M_PI   3.14159265358979323846264338327950288
+#endif // !M_PI
 void Bem::initialize(const Eigen::MatrixX2d &xy) {
 	_sp.node(xy);
 	const Properties::bc &xbc = settings.xBC;
@@ -16,53 +18,131 @@ void Bem::initialize(const Eigen::MatrixX2d &xy) {
 		_e[i].init(_sp, i, settings.order(), settings.qdOrder());
 	}
 
-	int idSingular = 0;
+	//int idSingular = 0;
 	//Element ee(_e[idSingular]);
 	//const Eigen::Matrix2Xd qd = Element::getGLQuad(14);
 	//ee.init(_sp, 1, qd);
-	double rp = sp().d(sp().x(), idSingular, 0.0)(0);
-	double zp = sp().d(sp().y(), idSingular,0.0)(0);
-	std::cout.precision(15);
-	std::cout <<regular(rp, zp,10) <<"\n";
-	printf("tmid = %15.15f\n",_e[idSingular].t()(1));
+	//double rp = sp().d(sp().x(), idSingular, 0.0)(0);
+	//double zp = sp().d(sp().y(), idSingular,0.0)(0);
+	//std::cout.precision(15);
+	//std::cout <<regular(rp, zp,10) <<"\n";
+	//printf("tmid = %15.15f\n",_e[idSingular].t()(1));
 	//settings.tic();
 	//singular(_e[idSingular].t()(1), idSingular);
 	//settings.toc();
 	//singular(0., idSingular);
 	//singular(1., idSingular);
-}
-
-
-void Bem::assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D) {
-
-	int nNode = settings.nElm() * settings.order() + 1;
-	Eigen::VectorXd r; r.setZero(nNode);
-	Eigen::VectorXd z; z.setZero(nNode);
-	for (int idElement = 0; idElement < settings.nElm(); idElement++) {
-		const Eigen::VectorXd &t = e()[idElement].t();
-		for (int k = 0; k < t.size(); k++) {
-			int idNode = idElement * settings.order() + k;			
-			r(idNode) = sp().d(sp().x(), idElement, t(k))(0);
-			z(idNode) = sp().d(sp().y(), idElement, t(k))(0);
-		}
-	}
-	S.setZero(nNode, nNode);
-	D.setZero(nNode, nNode);
-
-	for (int idSource = 0; idSource < nNode; idSource++) {
-		for (int k = 0; k <= settings.order(); k++) {
-
-		}
-
-	}
+	setrz();
+	//std::cout << node().r;
+	//Eigen::VectorXd out = singular(e()[0].t()(1), 0);
+	//out = regular(node().r(1,0), node().z(1, 0),15);
+	//std::cout << node().r(1, 0) << "abc" << node().z(1, 0) << "abd";
 	
 
+	//std::cout << out;
+}
 
+void Bem::setrz() {
+	int nNode = settings.nElm() * settings.order() + 1;
+	_node.r.setZero(nNode, 3);
+	_node.z.setZero(nNode, 3);
+	for (int idElement = 0; idElement < settings.nElm(); idElement++) {
+		const Eigen::VectorXd &t = e()[idElement].t();
+		for (int k = 0; k < settings.order(); k++) {
+			int idNode = idElement * settings.order() + k;
+			_node.r.row(idNode) = sp().d(sp().x(), idElement, t(k));
+			_node.z.row(idNode) = sp().d(sp().y(), idElement, t(k));
+		}
+	}
+	int idNode = _node.r.rows() - 1;
+	int idElement = settings.nElm() - 1;
+	const Eigen::VectorXd &t = e()[idElement].t();
+	_node.r.row(idNode) = sp().d(sp().x(), idElement, t(t.size() - 1));
+	_node.z.row(idNode) = sp().d(sp().y(), idElement, t(t.size() - 1));
+};
+
+void Bem::assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D) {
+	const int nNode = settings.nElm() * settings.order() + 1;
+	const int nElem = settings.nElm();
+	const int nOrder = settings.order();
+	const Eigen::VectorXd &r = node().r.col(0);
+	const Eigen::VectorXd &z = node().z.col(0);
+	S.setZero(nNode, nNode);
+	D.setZero(nNode, nNode);
+	//std::cout << "asdfasdfasdf" <<nNode;
+#pragma omp parallel for 
+	for (int idSource = 0; idSource < nNode; idSource++) {
+		//printf("source %02d\n", idSource);
+
+		//printf("source %02d: %02d:,%02d:\n ", idSource, idElementHasSource_Low, idElementHasSource_Up);
+		if (abs(r(idSource)) < eps) {
+			//printf("Axis %02d %16.16f: \n", idSource, abs(r(idSource)));
+			for (int idElement = 0; idElement < nElem; idElement++) {
+				const Eigen::VectorXd regularIntegral = regular(r(idSource), z(idSource), idElement);
+				for (int local = 0; local <= nOrder; local++) {
+					int idReceiver = nOrder * idElement + local;
+					S(idSource, idReceiver) += regularIntegral(local);
+					D(idSource, idReceiver) += regularIntegral(nOrder + 1 + local);
+					//printf("{%02d,%02d} ", idSource, idReceiver);
+
+				}					
+				//printf("\n");
+
+			}
+		}
+		else {
+			int idElementHasSource_Low, idElementHasSource_Up;
+			if (idSource % nOrder == 0) {
+				idElementHasSource_Up = Numeric::clamp(idSource / nOrder, 0, nElem - 1);
+				idElementHasSource_Low = Numeric::clamp(idSource / nOrder - 1, 0, nElem - 1);
+			}
+			else {
+				idElementHasSource_Up = Numeric::clamp(idSource / nOrder, 0, nElem - 1);
+				idElementHasSource_Low = idElementHasSource_Up;
+			}
+		
+			for (int idElement = 0; idElement < nElem; idElement++) {
+				
+				if (idElement < idElementHasSource_Low || idElement > idElementHasSource_Up) {	//regular
+					const Eigen::VectorXd regularIntegral = regular(r(idSource), z(idSource), idElement);
+					for (int local = 0; local <= nOrder; local++) {
+						int idReceiver = nOrder * idElement + local;
+						S(idSource, idReceiver) += regularIntegral(local);
+						D(idSource, idReceiver) += regularIntegral(nOrder + 1 + local);
+						//printf("(%02d,%02d) ", idSource, idReceiver);
+
+					}
+					//printf("\n");
+
+				}
+				else {		//singular
+					int idSourcelocal = idSource - nOrder * idElement;
+
+					//printf("iE %02d local %5.5f ", idElement, e()[idElement].t()(idSourcelocal));
+					const Eigen::VectorXd singularIntegral = singular(e()[idElement].t()(idSourcelocal), idElement);
+					
+
+
+					for (int local = 0; local <= nOrder; local++) {
+						int idReceiver = nOrder * idElement + local;
+						S(idSource, idReceiver) += singularIntegral(local);
+						D(idSource, idReceiver) += singularIntegral(nOrder + 1 + local);
+						//printf("[%d: %02d,%02d] ", idSourcelocal, idSource, idReceiver);
+
+					}
+					//printf("\n");
+
+				}
+			}
+			//printf("\n");
+		}
+		 //printf("\n"); 
+	}
 }
 
 //------------local integration -------------
 
-Eigen::VectorXd Bem::regular(double rp, double zp, int idElement) {
+const Eigen::VectorXd Bem::regular(double rp, double zp, int idElement) {
 	const Element &e = _e[idElement];
 	const Eigen::Matrix2Xd qd = Element::getGLQuad(e.r().size());	
 	Eigen::VectorXd sK, dK, dE, K, E;
@@ -82,32 +162,50 @@ Eigen::VectorXd Bem::regular(double rp, double zp, int idElement) {
 	return output;
 };
 
-Eigen::VectorXd Bem::singular(double tau, int idElement) {
+const Eigen::VectorXd Bem::singular(double tau, int idElement) {
 	double rp = sp().d(sp().x(), idElement, tau)(0);
 	double zp = sp().d(sp().y(), idElement, tau)(0);
-	Eigen::VectorXd output(2 * (settings.order() + 1)); output.setZero();
-	const Element &ee = _e[idElement];
+	
+	Eigen::VectorXd output; output.setZero(2 * (settings.order() + 1));
+	Element &ee = _e[idElement];
 	Element e(ee);
+	
+	int nqd_regular = settings.qdOrder();
+	int nqd_singular = 20;
+
+	nqd_regular = 20;
+	//Element e;
+	//e.init(_sp, idElement, 1, nqd_regular);
+
 
 	Eigen::Matrix2Xd qd;
 	Eigen::MatrixXd basis;
 	Eigen::VectorXd sK, dK, dE, m, RK, RE, QK, QE, PK, PE,K,E;
 
 	
-	int nqd_regular = 10;
 	
-	if (abs(tau) < eps || abs(1.0 - tau) < eps) {
+	
+	if (abs(tau) < eps || abs(1.0 - tau) < eps) {		
 		qd = Element::getGLQuad(nqd_regular);
 		e.init(_sp, idElement, qd);
+		
+		
 		sKdKdE(rp, zp, e, sK, dK, dE, m);
+	
 		RKRE(m, Eigen::VectorXd(qd.row(0)), tau, RK, RE);
 		basis = e.basis().transpose();
 		for (int k = 0; k <= settings.order(); k++) {
-			output(k) += qd.row(1).dot(
-				Eigen::VectorXd(RK.array() * sK.array()* basis.col(k).array()));
-			output(settings.order() + 1 + k) += qd.row(1).dot(
-				Eigen::VectorXd((RK.array() * dK.array() + RE.array() * dE.array())	* basis.col(k).array()));
-		}		
+			//double b1 = qd.row(1).dot(Eigen::VectorXd(			RK.array() * sK.array()* basis.col(k).array()));
+			//double b2 = qd.row(1).dot(Eigen::VectorXd(
+				//(RK.array() * dK.array() + RE.array() * dE.array())	* basis.col(k).array()));
+			//printf(" %.12e, %.12e", b1, b2);
+			output(k) += qd.row(1).dot(Eigen::VectorXd(
+				RK.array() * sK.array()* basis.col(k).array()));
+			output(settings.order() + 1 + k) += qd.row(1).dot(Eigen::VectorXd(
+				(RK.array() * dK.array() + RE.array() * dE.array())	* basis.col(k).array()));
+		}
+		//std::cout << tau << " m\t" << m.transpose() << "\n";
+
 	}
 	else {
 		qd = Element::getGLQuad(nqd_regular);
@@ -138,13 +236,18 @@ Eigen::VectorXd Bem::singular(double tau, int idElement) {
 		}
 
 	}
-
-	int nqd_singular = 2;
-
+	
+	
 	// singular 
 	if (abs(tau) < eps || abs(1.0 - tau) < eps) {
+		
 		qd = Element::getLogQuad(nqd_singular);
-		qd.row(0).array() = tau + (1. - 2.*tau) *qd.row(0).array();
+		
+		
+		if (abs(1.0 - tau) < eps) {
+			qd.row(0).array() = 1. - qd.row(0).array();
+		}
+		//qd.row(0).array() = tau + qd.row(0).array() * (1. - 2.*tau);
 		e.init(_sp, idElement, qd);
 		sKdKdE(rp, zp, e, sK, dK, dE, m);
 		KEPKQKPEQE(m, K, E, PK, QK, PE, QE);
@@ -156,8 +259,11 @@ Eigen::VectorXd Bem::singular(double tau, int idElement) {
 				Eigen::VectorXd((dE.array()* QE.array() + dK.array()* QK.array())* basis.col(k).array()
 				));
 		}
+		//std::cout << tau << " m\t" << QE.transpose() << "\n";
+
 	}	
 	else {
+		
 		qd = Element::getGLQuad(nqd_regular);
 		qd.row(0).array() *= tau;
 		qd.row(1).array() *= tau * log(tau);
@@ -264,11 +370,11 @@ void Bem::sKdKdE(double rp, double zp, const Element &e,
 	else {
 		E.setZero(r.size());
 		dE.setZero(r.size());
-		Eigen::VectorXd tmp = (1.0 + ((z.array() - zp) / r.array()).square()).rsqrt();
+		Eigen::VectorXd tmp = 1./(1.0 + ((z.array() - zp) / r.array()).square()).sqrt();
 		K = 0.5 * tmp;
 		sK = J;
-		dK = (dz.array()/r.array() + dr.array() * (zp - z.array())/(r.array().square()))*
-			tmp.array().square()	;
+		dK = (dz.array() / r.array() + dr.array() * (zp - z.array()) / (r.array().square()))*tmp.array().square();
+		//printf("wtf");
 	}
 };
 
@@ -282,14 +388,13 @@ void Bem::sKdKdE(double rp, double zp, const Element &e,
 	const Eigen::VectorXd &J = e.J();
 	const Eigen::VectorXd &xi = e.xi();
 
-	Eigen::VectorXd a = r.array().square() + rp * rp + (z.array() - zp).square();
+	Eigen::VectorXd a = r.array() *r.array() + rp * rp + (z.array() - zp) * (z.array() - zp);
 	Eigen::VectorXd b = r.array() * 2 * rp;
-	m = 2. * b.array() / (a + b).array();
+	m = 2. * b.array() / (a.array() + b.array());
 	Eigen::VectorXd pi_sqrt_a_plus_b = M_PI * (a + b).array().sqrt();
 	sK = r.array() * J.array() / pi_sqrt_a_plus_b.array();
 	dK = 0.5 * dz.array() / pi_sqrt_a_plus_b.array();
-	dE = (
-		(dr.array() *(zp - z.array()) - dz.array() *(rp - r.array()))
+	dE = ((dr.array() *(zp - z.array()) - dz.array() *(rp - r.array())) 
 		* r.array() / (a - b).array() - 0.5 * dz.array()) / pi_sqrt_a_plus_b.array();
 
 	
@@ -300,9 +405,9 @@ void Bem::RKRE(const Eigen::VectorXd &m, const Eigen::VectorXd &t, double tau, E
 	KEPKQKPEQE(m, K, E, PK, QK, PE, QE);
 	RK.setZero(m.size());
 	RE.setZero(m.size());
-	Eigen::VectorXd LOG(((1. - m.array()) / (t.array() - tau).square()).log());
-	RK = PK.array() - QK.array() *LOG.array();
-	RE = PE.array() - QE.array() *LOG.array();
+	Eigen::VectorXd LOG((0. - m.array()).log1p() -  2. * (t.array() - tau).abs().log());
+	RK = Eigen::VectorXd(PK.array() - QK.array() * LOG.array());
+	RE = Eigen::VectorXd(PE.array() - QE.array() * LOG.array());
 };
 
 void Bem::KEPKQKPEQE( const Eigen::VectorXd &m,
@@ -362,4 +467,4 @@ void Bem::Properties::print() const {
 }
 
 double Bem::Properties::_timer = 0;
-const double Bem::eps = 1e-14;
+const double Bem::eps = 1E-14;

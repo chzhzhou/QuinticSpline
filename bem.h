@@ -10,28 +10,39 @@
 #include <vector>
 
 class Bem {
+private:
+	typedef struct Node {
+		Eigen::MatrixX3d r, z;
+	} Node;
 public:
-	Bem() {};
-	
+	Bem() {};	
 	void initialize(const Eigen::MatrixX2d &xy);
 	const std::vector<Element> &e() const { return _e; };
 	const Spline &sp() const { return _sp; };
-	Eigen::VectorXd regular(double rp, double zp, int idElement);	
-	Eigen::VectorXd singular(double tau, int idElement);
-	void assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D);
-	
-	
-	
+	//const Eigen::MatrixX3d &r() const { return _r; };
+	//const Eigen::MatrixX3d &z() const { return _z; };
+	const Node &node() const { return _node; };
+	const Eigen::VectorXd regular(double rp, double zp, int idElement);	
+	const Eigen::VectorXd singular(double tau, int idElement);
+	void assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D);	
+
+
+
 private:
+
+	// the real data
 	std::vector<Element> _e;
-	Spline _sp;	
+	//Eigen::MatrixX3d _r, _z;
+	Node  _node;
+	Spline _sp;
+	// under the hood
 	static const double eps;
 	void RKRE(const Eigen::VectorXd &m, const Eigen::VectorXd &t, double tau, Eigen::VectorXd &RK, Eigen::VectorXd &RE);
 	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK, Eigen::VectorXd &dK, Eigen::VectorXd &dE, Eigen::VectorXd &K,	Eigen::VectorXd &E);
 	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK,Eigen::VectorXd &dK,	Eigen::VectorXd &dE,Eigen::VectorXd &m);
 	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K , Eigen::VectorXd &E,	Eigen::VectorXd &PK, Eigen::VectorXd &QK,	Eigen::VectorXd &PE, Eigen::VectorXd &QE);
 	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K, Eigen::VectorXd &E);
-	
+	void setrz();
 
 public:	
 	struct Properties {		
@@ -58,10 +69,11 @@ public:
 		const int &indexShift() { return _indexShift; };
 		void indexShift(int i) { _indexShift = i; };			
 		void qdOrder(int i) { _qdOrder = i; };
+		void order(int i) { _order = i; };
 		void nElm(int i) { _nElm = i; };
 		void print() const;
 		static void tic() { printf("tic\n"); _timer = omp_get_wtime(); };
-		static void toc() { printf("toc ... %.ef sec\n", omp_get_wtime() - _timer); };
+		static void toc() { printf("toc ... %.2e sec\n", omp_get_wtime() - _timer); };
 	private:
 		int _nElm = 0;
 		//default
