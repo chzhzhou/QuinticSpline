@@ -15,6 +15,6 @@
 #include "numeric.h"
 #include <Eigen/Dense>
 #include <omp.h>
-
+#include <vector>
 
 // TODO: reference additional headers your program requires here

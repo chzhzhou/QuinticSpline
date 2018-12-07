@@ -22,8 +22,9 @@ public:
 	//const Eigen::MatrixX3d &r() const { return _r; };
 	//const Eigen::MatrixX3d &z() const { return _z; };
 	const Node &node() const { return _node; };
-	const Eigen::VectorXd regular(double rp, double zp, int idElement);	
-	const Eigen::VectorXd singular(double tau, int idElement);
+	const std::vector<double > regular(double rp, double zp, int idElement);
+	const std::vector<double > axis(double zp, int idElement);
+	const std::vector<double > singular(double tau, int idElement);
 	void assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D);	
 
 
@@ -36,12 +37,7 @@ private:
 	Node  _node;
 	Spline _sp;
 	// under the hood
-	static const double eps;
-	void RKRE(const Eigen::VectorXd &m, const Eigen::VectorXd &t, double tau, Eigen::VectorXd &RK, Eigen::VectorXd &RE);
-	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK, Eigen::VectorXd &dK, Eigen::VectorXd &dE, Eigen::VectorXd &K,	Eigen::VectorXd &E);
-	void sKdKdE(double rp, double zp, const Element &e,	Eigen::VectorXd &sK,Eigen::VectorXd &dK,	Eigen::VectorXd &dE,Eigen::VectorXd &m);
-	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K , Eigen::VectorXd &E,	Eigen::VectorXd &PK, Eigen::VectorXd &QK,	Eigen::VectorXd &PE, Eigen::VectorXd &QE);
-	void KEPKQKPEQE(const Eigen::VectorXd &m, Eigen::VectorXd &K, Eigen::VectorXd &E);
+	static const double eps;	
 	void setrz();
 
 public:	

@@ -20,8 +20,8 @@ public:
 	void x(BC bc0, BC bc1, double a0 = 0, double b0 = 0, double a1 = 0, double b1 = 0);
 	void y(BC bc0, BC bc1, double a0 = 0, double b0 = 0, double a1 = 0, double b1 = 0);
 	//API
-	double localArc(int i, double t = 1.0, int nqd = 10) const;
-	double arc2t(int i, double arc, int nqd = 10) const;		
+	double localArc(int i, double t = 1.0, int nqd = 20) const;
+	double arc2t(int i, double arc, int nqd = 20) const;		
 	const Eigen::Vector3d d(const Coef &x, int i, double t) const;
 	
 

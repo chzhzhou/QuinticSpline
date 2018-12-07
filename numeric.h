@@ -5,8 +5,10 @@
 
 class Numeric {
 public:
-	static const double* qd[21];
-	static const double* lqd[21];
+	static const double* qd_GL_x[21];
+	static const double* qd_GL_w[21];
+	static const double* qd_LOG_x[21];
+	static const double* qd_LOG_w[21];
 	static void KEPQ(double m, double &K, double &E, double &KP, double &KQ, double &EP, double &EQ);
 	static void KEPQ(double m, double &K, double &E);
 	static double(**N[3])(double);
@@ -15,15 +17,11 @@ public:
 		return v<= lo ? lo : v>= hi ? hi : v;
 	}
 private:
-	static const double qd1[2], qd2[4], qd3[6], qd4[8], qd5[10],
-		qd6[12], qd7[14], qd8[16], qd9[18], qd10[20],
-		qd11[22], qd12[24], qd13[26], qd14[28], qd15[30],
-		qd16[32], qd17[34], qd18[36], qd19[38], qd20[40];
-	//static const double lqd1[10], lqd2[20], lqd3[30], lqd4[40];
-	static const double lqd1[2], lqd2[4], lqd3[6], lqd4[8], lqd5[10],
-		lqd6[12], lqd7[14], lqd8[16], lqd9[18], lqd10[20],
-		lqd11[22], lqd12[24], lqd13[26], lqd14[28], lqd15[30],
-		lqd16[32], lqd17[34], lqd18[36], lqd19[38], lqd20[40];
+	static const double qd_GL_x01[1], qd_GL_x02[2], qd_GL_x03[3], qd_GL_x04[4], qd_GL_x05[5], qd_GL_x06[6], qd_GL_x07[7], qd_GL_x08[8], qd_GL_x09[9], qd_GL_x10[10], qd_GL_x11[11], qd_GL_x12[12], qd_GL_x13[13], qd_GL_x14[14], qd_GL_x15[15], qd_GL_x16[16], qd_GL_x17[17], qd_GL_x18[18], qd_GL_x19[19], qd_GL_x20[20];
+	static const double qd_GL_w01[1], qd_GL_w02[2], qd_GL_w03[3], qd_GL_w04[4], qd_GL_w05[5], qd_GL_w06[6], qd_GL_w07[7], qd_GL_w08[8], qd_GL_w09[9], qd_GL_w10[10], qd_GL_w11[11], qd_GL_w12[12], qd_GL_w13[13], qd_GL_w14[14], qd_GL_w15[15], qd_GL_w16[16], qd_GL_w17[17], qd_GL_w18[18], qd_GL_w19[19], qd_GL_w20[20];
+	static const double qd_LOG_x01[1], qd_LOG_x02[2], qd_LOG_x03[3], qd_LOG_x04[4], qd_LOG_x05[5], qd_LOG_x06[6], qd_LOG_x07[7], qd_LOG_x08[8], qd_LOG_x09[9], qd_LOG_x10[10], qd_LOG_x11[11], qd_LOG_x12[12], qd_LOG_x13[13], qd_LOG_x14[14], qd_LOG_x15[15], qd_LOG_x16[16], qd_LOG_x17[17], qd_LOG_x18[18], qd_LOG_x19[19], qd_LOG_x20[20];
+	static const double qd_LOG_w01[1], qd_LOG_w02[2], qd_LOG_w03[3], qd_LOG_w04[4], qd_LOG_w05[5], qd_LOG_w06[6], qd_LOG_w07[7], qd_LOG_w08[8], qd_LOG_w09[9], qd_LOG_w10[10], qd_LOG_w11[11], qd_LOG_w12[12], qd_LOG_w13[13], qd_LOG_w14[14], qd_LOG_w15[15], qd_LOG_w16[16], qd_LOG_w17[17], qd_LOG_w18[18], qd_LOG_w19[19], qd_LOG_w20[20];
+
 	static const double ellipKP[11], ellipKQ[11], ellipEP[11], ellipEQ[11];
 	static double N00(double x);
 	static double N10(double x);
