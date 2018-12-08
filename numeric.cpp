@@ -29,7 +29,7 @@ void Numeric::KEPQ(double m, double &K, double &E) {
 	double KP = ellipKP[0], KQ = ellipKQ[0], EP = ellipEP[0], EQ = ellipEQ[0];
 	double m1 = 1. - m;
 	for (int k = 1; k <= 10; k++) {
-		double m1k = pow(m1, (double)k);
+		double m1k = pow(m1, k);
 		KP += ellipKP[k] * m1k;
 		KQ += ellipKQ[k] * m1k;
 		EP += ellipEP[k] * m1k;

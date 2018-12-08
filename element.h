@@ -16,7 +16,7 @@ class Element {
 		Element() {};
 		Element(const Element &e);		
 		void init(const Spline &sp, int i, int o, int nqd);
-		void init(const Spline &sp, int i, int nqd, const std::vector<double> &qdx);
+		void init(const Spline &sp, int i, int nqd, double const * qdx);
 
 		const double &arc() const { return _arc; };
 		const int &order() const { return _order; };

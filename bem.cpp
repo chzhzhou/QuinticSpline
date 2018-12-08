@@ -14,10 +14,11 @@ void Bem::initialize(const Eigen::MatrixX2d &xy) {
 	settings.nElm(_sp.node().rows() - 1);
 
 	_e.resize(settings.nElm());
-	for (unsigned int i = 0; i < _e.size(); i++) {
+	for (std::size_t i = 0; i < _e.size(); i++) {
 		_e[i].init(_sp, i, settings.order(), settings.qdOrder());
 	}
-	
+	setrz();
+
 	//int idSingular = 0;
 	//Element ee(_e[idSingular]);
 	//const Eigen::Matrix2Xd qd = Element::getGLQuad(14);
@@ -32,14 +33,14 @@ void Bem::initialize(const Eigen::MatrixX2d &xy) {
 	//settings.toc();
 	//singular(0., idSingular);
 	//singular(1., idSingular);
-	setrz();
+
 	//std::cout << node().r;
 	//Eigen::VectorXd out = singular(e()[0].t()(1), 0);
 	//out = regular(node().r(1,0), node().z(1, 0),15);
 	//std::cout << node().r(1, 0) << "abc" << node().z(1, 0) << "abd";
 	
 
-	//std::cout << out;
+	
 }
 
 void Bem::setrz() {
@@ -69,112 +70,82 @@ void Bem::assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D) {
 	const Eigen::VectorXd &r = node().r.col(0);
 	const Eigen::VectorXd &z = node().z.col(0);
 	S.setZero(nNode, nNode);
-	D.setZero(nNode, nNode);
-
+	D.setZero(nNode, nNode);	
 	
-	//std::cout << "asdfasdfasdf" <<nNode;
 #pragma omp parallel for 
-	for (int idSource = 0; idSource < nNode; idSource++) {
-		//printf("wtf %02d %16.16f: \n", idSource, abs(r(idSource)));
-		//printf("source %02d: %02d:,%02d:\n ", idSource, idElementHasSource_Low, idElementHasSource_Up);
-		if (abs(r(idSource)) < 1e-13) {
-			//printf("Axis %03d %16.16f: \n", idSource, abs(r(idSource)));
-			for (int idElement = 0; idElement < nElem; idElement++) {
-				const std::vector<double > axisIntegral = axis(z(idSource), idElement);
-				for (int local = 0; local <= nOrder; local++) {
-					int idReceiver = nOrder * idElement + local;
-					S(idSource, idReceiver) += axisIntegral[local];
-					D(idSource, idReceiver) += axisIntegral[nOrder + 1 + local];
-					
-					
-					//printf("{%02d,%02d} ", idSource, idReceiver);
-
-				}					
-				//printf("\n");
+	for (int i = 0; i < nNode; i++) {
+		
+		if (abs(r(i)) < 1e-10) {
+			//printf("Axis %03d %16.16f: \n", i, abs(r(i)));
+			for (int j = 0; j < nElem; j++) {
+				const std::vector<double > axisIntegral = axis(z(i), j);
+				S(i, j) += axisIntegral[0];
+				S(i, j + 1) += axisIntegral[1];
+				D(i, j) += axisIntegral[2];
+				D(i, j + 1) += axisIntegral[3];
 
 			}
 		}
 		else {
-			int idElementHasSource_Low, idElementHasSource_Up;
-			if (idSource % nOrder == 0) {
-				idElementHasSource_Up = Numeric::clamp(idSource / nOrder, 0, nElem - 1);
-				idElementHasSource_Low = Numeric::clamp(idSource / nOrder - 1, 0, nElem - 1);
+
+
+			for (int j = 0; j < i - 1; j++) {
+				const std::vector<double > regularIntegral = regular(r(i), z(i), j);
+				S(i, j    ) += regularIntegral[0];
+				S(i, j + 1) += regularIntegral[1];
+				D(i, j    ) += regularIntegral[2];
+				D(i, j + 1) += regularIntegral[3];
 			}
-			else {
-				idElementHasSource_Up = Numeric::clamp(idSource / nOrder, 0, nElem - 1);
-				idElementHasSource_Low = idElementHasSource_Up;
-			}
-		
-			for (int idElement = 0; idElement < nElem; idElement++) {
+			
+			const std::vector<double > singularIntegral0 = singular(1, i - 1);
+			S(i, i - 1) += singularIntegral0[0];
+			S(i, i    ) += singularIntegral0[1];
+			D(i, i - 1) += singularIntegral0[2];
+			D(i, i    ) += singularIntegral0[3];			
 				
-				if (idElement < idElementHasSource_Low || idElement > idElementHasSource_Up) {	//regular
-					const std::vector<double > regularIntegral = regular(r(idSource), z(idSource), idElement);
-					for (int local = 0; local <= nOrder; local++) {
-						int idReceiver = nOrder * idElement + local;
-						S(idSource, idReceiver) += regularIntegral[local];
-						D(idSource, idReceiver) += regularIntegral[nOrder + 1 + local];
-						//printf("(%02d,%02d) ", idSource, idReceiver);
-					}
-					//printf("\n");
+			const std::vector<double > singularIntegral1 = singular(0, i);
+			S(i, i    ) += singularIntegral1[0];
+			S(i, i + 1) += singularIntegral1[1];
+			D(i, i    ) += singularIntegral1[2];
+			D(i, i + 1) += singularIntegral1[3];
 
-				}
-				else {		//singular
-					int idSourcelocal = idSource - nOrder * idElement;
-
-					//printf("source %03d element%03d local%d tau %1.2f",	idSource, idElement, idSourcelocal, e()[idElement].t()[idSourcelocal]);
-					const std::vector<double > singularIntegral = singular(e()[idElement].t()[idSourcelocal], idElement);
-					
-
-
-					for (int local = 0; local <= nOrder; local++) {
-						int idReceiver = nOrder * idElement + local;
-						S(idSource, idReceiver) += singularIntegral[local];
-						D(idSource, idReceiver) += singularIntegral[nOrder + 1 + local];
-						//printf("[%d: %02d,%02d] ", idSourcelocal, idSource, idReceiver);
-
-					}
-					//printf("\n");
-
-				}
+			for (int j = i + 1; j < nNode - 1; j++) {
+				const std::vector<double > regularIntegral = regular(r(i), z(i), j);
+				S(i, j) += regularIntegral[0];
+				S(i, j + 1) += regularIntegral[1];
+				D(i, j) += regularIntegral[2];
+				D(i, j + 1) += regularIntegral[3];
 			}
-			//printf("\n");
-		}
-		 //printf("\n"); 
+
+
+
+
+
+		
+		}		 
 	}
 }
 
 //------------local integration -------------
 
 const std::vector<double > Bem::regular(double rp, double zp, int idElement) {
-	const Element &e = _e[idElement];
+	const Element &ee = _e[idElement];
+	const int nqd = ee.r().size();
+	const int &o = ee.order();
+	const std::vector<std::vector<double>> &basis = ee.basis();
+	std::vector<double > output(2 * (o + 1));	
 
-	const int nqd = e.r().size();
-//	Element::getGLQuad(nqd, qdx, qdw);	
-	const int &o = e.order();
-	const std::vector<std::vector<double>> &basis = e.basis();
-	std::vector<double > output(2 * (o + 1));
-	
 	for (int k = 0; k < nqd; k++) {
-		const double &r = e.r()[k];
-		const double &z = e.z()[k];
-		const double &dr = e.dr()[k];
-		const double &dz = e.dz()[k];
-		const double &J = e.J()[k];
+		const double &r = ee.r()[k], &z = ee.z()[k], &dr = ee.dr()[k], &dz = ee.dz()[k], &J = ee.J()[k];
+		const double &ab = Numeric::qd_GL_x[nqd][k], &wt = Numeric::qd_GL_w[nqd][k];
 
-		const double ab = Numeric::qd_GL_x[nqd][k];
-		const double wt = Numeric::qd_GL_w[nqd][k];
-
-
-		double a = r * r + rp * rp + (zp - z) * (zp - z);
-		double b = 2. * rp * r;
-		double m = 2. * b / (a + b);
+		double a, b, m;
 		double K, E;
-		Numeric::KEPQ(m, K, E);
-
-		double f_single_K = r * J / M_PI / sqrt(a + b);
-		double f_double_K = dz / 2. / M_PI / sqrt(a + b);
-		double f_double_E = ((dr * (zp - z) - dz * (rp - r)) * r / (a - b) - dz / 2.) / M_PI / sqrt(a + b);
-
+		double f_single_K, f_double_K, f_double_E;
+		
+		abm(rp, zp, r, z, a, b, m);		
+		Numeric::KEPQ(m, K, E);		
+		fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);		
 		for (int j = 0; j <= o; j++) {
 			const double &N = basis[j][k];
 			output[j] += f_single_K * K * N * wt;
@@ -184,11 +155,9 @@ const std::vector<double > Bem::regular(double rp, double zp, int idElement) {
 	return output;
 };
 
-
 const std::vector<double > Bem::axis(double zp, int idElement) {
 	const Element &e = _e[idElement];
-	const int nqd = e.r().size();
-	//	Element::getGLQuad(nqd, qdx, qdw);	
+	const int nqd = e.r().size();	
 	const int &o = e.order();
 	const std::vector<std::vector<double>> &basis = e.basis();
 	std::vector<double > output(2 * (o + 1));
@@ -204,7 +173,7 @@ const std::vector<double > Bem::axis(double zp, int idElement) {
 		const double wt = Numeric::qd_GL_w[nqd][k];
 
 		double f_single_axis = J * r / 2. / sqrt(r * r + (z - zp) * (z - zp));
-		double f_double_axis = r / 2. *(dz * r + dr *(zp -z))/ pow(r * r + (z - zp) * (z - zp),1.5);		
+		double f_double_axis = r / 2. *(dz * r + dr *(zp -z))/ pow(r * r + (z - zp) * (z - zp), 1.5);		
 
 		for (int j = 0; j <= o; j++) {
 			const double &N = basis[j][k];
@@ -215,101 +184,255 @@ const std::vector<double > Bem::axis(double zp, int idElement) {
 	return output;
 };
 
-
 const std::vector<double > Bem::singular(double tau, int idElement) {
 	double rp = sp().d(sp().x(), idElement, tau)(0);
 	double zp = sp().d(sp().y(), idElement, tau)(0);
-	const Element &ee = _e[idElement];
-	Element e(ee);	
-	const int &o = e.order();
-	std::vector<double > output(2 * (o + 1));
-	std::vector<double> qqd0;
-	std::vector<double> qqd1;
+	if (tau < 0.5) {
+		rp = node().r(idElement, 0);
+		zp = node().z(idElement, 0);
+	}
+	else {
+		rp = node().r(idElement+1, 0);
+		zp = node().z(idElement + 1, 0);
+	}
 
-	const int nqd_regular = 6;
-	const int nqd_singular = 6;	
+	const Element &ee = _e[idElement];	
+	const int &o = ee.order();
+	std::vector<double > output(2 * (o + 1));
+	
+	
+	
+	const int nqd_regular =  settings.qdOrder()*2;
+	const int nqd_singular = settings.qdOrder() * 2;
 	
 	switch (o)	{
-	case 1: {
-		
-		qqd0.resize(nqd_regular);
-		for (int l = 0; l < qqd0.size(); l++) {
-			qqd0[l] = Numeric::qd_GL_x[nqd_regular][l];
-		}		
-		Element e0(ee);
-		e0.init(_sp, idElement,nqd_regular, qqd0);
-		
-		for (int k = 0; k < nqd_regular; k++) {
-			
-			const double &r = e0.r()[k];
-			const double &z = e0.z()[k];
-			const double &dr = e0.dr()[k];
-			const double &dz = e0.dz()[k];
-			const double &J = e0.J()[k];
-			const double &ab = Numeric::qd_GL_x[nqd_regular][k];
-			const double &wt = Numeric::qd_GL_w[nqd_regular][k];
-
-			double a = r * r + rp * rp + (zp - z) * (zp - z);
-			double b = 2. * rp * r;
-			double m = 2. * b / (a + b);
-			double K, E, PK, QK,PE,QE;
-			Numeric::KEPQ(m, K, E,PK,QK,PE,QE);
-			double RK = PK - QK * 2.0 * log(sqrt(1. - m) / abs(ab - tau));
-			double RE = PE - QE * 2.0 * log(sqrt(1. - m) / abs(ab - tau));;
-
-			double f_single_K = r * J / M_PI / sqrt(a + b);
-			double f_double_K = dz / 2. / M_PI / sqrt(a + b);
-			double f_double_E = ((dr * (zp - z) - dz * (rp - r)) * r / (a - b) - dz / 2.) / M_PI / sqrt(a + b);
-
+	case 1: {	
+		double * qdx = NULL;
+		qdx = new double[nqd_regular];
+		for (int l = 0; l < nqd_regular; l++) {
+			const double &ab = Numeric::qd_GL_x[nqd_regular][l];
+			qdx[l] = ab;
+		}
+		Element e(ee);
+		e.init(_sp, idElement, nqd_regular, qdx);
+		for (int k = 0; k < nqd_regular; k++) {			
+			const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+			const double &ab = Numeric::qd_GL_x[nqd_regular][k],  &wt = Numeric::qd_GL_w[nqd_regular][k];
+			double a, b, m, K, E, PK, QK, PE, QE, RK,RE, f_single_K, f_double_K, f_double_E;			
+			abm(rp, zp, r, z, a, b, m);			
+			Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+			RK = RKE(PK, QK, m, ab, tau);
+			RE = RKE(PE, QE, m, ab, tau);			
+			fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
 			for (int j = 0; j <= o; j++) {
-				const double &N = e0.basis()[j][k];
+				const double &N = e.basis()[j][k];
 				output[j] += f_single_K * RK * N * wt;
 				output[o + 1 + j] += (f_double_K * RK + f_double_E * RE) * N * wt;
 			}
-		}
-
+		}		
+		delete[] qdx;
+		qdx = NULL;
 		
-		qqd1.resize(nqd_singular);
-		for (int l = 0; l < qqd1.size(); l++) {
-			double ab = Numeric::qd_LOG_x[nqd_singular][l];
-			qqd1[l] = (1. - tau) * ab + tau * (1. -ab);
+		qdx = new double[nqd_singular];		
+		for (int l = 0; l < nqd_singular; l++) {
+			const double &ab = Numeric::qd_LOG_x[nqd_singular][l];
+			qdx[l] = (1. - tau) * ab + tau * (1. -ab);
 		}
-		Element e1(ee);
-		e1.init(_sp, idElement, nqd_singular, qqd1);
-		//std::cout << e1.r().size() << " abc";
-		for (int k = 0; k < nqd_singular; k++) {
-			
-			const double &r = e1.r()[k];
-			const double &z = e1.z()[k];
-			const double &dr = e1.dr()[k];
-			const double &dz = e1.dz()[k];
-			const double &J = e1.J()[k];
+		//Element e(ee);
+		e.init(_sp, idElement, nqd_singular, qdx);
+		for (int k = 0; k < nqd_singular; k++) {			
+			const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
 			const double &wt = Numeric::qd_LOG_w[nqd_singular][k];
-		
-			double a = r * r + rp * rp + (zp - z) * (zp - z);
-			double b = 2. * rp * r;
-			double m = 2. * b / (a + b);
-			double K, E, PK, QK, PE, QE;
-			Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
-			
-			
-			double f_single_K = r * J / M_PI / sqrt(a + b);
-			double f_double_K = dz / 2. / M_PI / sqrt(a + b);
-			double f_double_E = ((dr * (zp - z) - dz * (rp - r)) * r / (a - b) - dz / 2.) / M_PI / sqrt(a + b);
+			double a, b, m, K, E, PK, QK, PE, QE, f_single_K, f_double_K, f_double_E;			
+			abm(rp, zp, r, z, a, b, m);			
+			Numeric::KEPQ(m, K, E, PK, QK, PE, QE);			
+			fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
 			for (int j = 0; j <= o; j++) {
-				const double &N = e1.basis()[j][k];
+				const double &N = e.basis()[j][k];
 				output[j] += 2. * f_single_K * QK * N * wt;
 				output[o + 1 + j] += 2. * (f_double_K * QK + f_double_E * QE) * N * wt;
-				
-
 			}
 		}
+		delete[] qdx;  
+		qdx = NULL;
 
+		break;
+	}
+	case 2: {
+		
+		if ((abs(tau) < 2.e-15) || (abs(1. - tau) < 2.e-15)) {
+			for (int k = 0; k < nqd_regular; k++) {
+				const double &r = ee.r()[k], &z = ee.z()[k], &dr = ee.dr()[k], &dz = ee.dz()[k], &J = ee.J()[k];
+				const double &ab = Numeric::qd_GL_x[nqd_regular][k], &wt = Numeric::qd_GL_w[nqd_regular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, RK, RE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				RK = RKE(PK, QK, m, ab, tau);
+				RE = RKE(PE, QE, m, ab, tau);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = ee.basis()[j][k];
+					output[j] += f_single_K * RK * N * wt;
+					output[o + 1 + j] += (f_double_K * RK + f_double_E * RE) * N * wt;
+				}
+			}
+
+			double * qdx = NULL;
+			qdx = new double[nqd_singular];
+			for (int l = 0; l < nqd_singular; l++) {
+				const double &ab = Numeric::qd_LOG_x[nqd_singular][l];
+				qdx[l] = (1. - tau) * ab + tau * (1. - ab);
+			}
+			Element e(ee);
+			e.init(_sp, idElement, nqd_singular, qdx);
+			for (int k = 0; k < nqd_singular; k++) {
+				const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+				const double &wt = Numeric::qd_LOG_w[nqd_singular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = e.basis()[j][k];
+					output[j] += 2. * f_single_K * QK * N * wt;
+					output[o + 1 + j] += 2. * (f_double_K * QK + f_double_E * QE) * N * wt;
+				}
+			}
+			delete[] qdx;
+			qdx = NULL;
+
+		}
+		else {
+			double * qdx = NULL;
+			Element e(ee);
+			qdx = new double[nqd_regular];
+			/*============= regular 0 to tau =============*/				
+			for (int l = 0; l < nqd_regular; l++) {
+				const double &ab = Numeric::qd_GL_x[nqd_regular][l];
+				qdx[l] = tau * ab;
+			}
+			e.init(_sp, idElement, nqd_regular, qdx);
+			for (int k = 0; k < nqd_regular; k++) {
+				const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+				const double &ab = qdx[k], &wt = Numeric::qd_GL_w[nqd_regular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, RK, RE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				RK = RKE(PK, QK, m, ab, tau);
+				RE = RKE(PE, QE, m, ab, tau);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = e.basis()[j][k];
+					output[j] += f_single_K * RK * N * wt * tau;
+					output[j] += -2. * f_single_K * QK * N * wt * tau * log(tau);
+					output[o + 1 + j] += (f_double_K * RK + f_double_E * RE) * N * wt * tau;					
+					output[o + 1 + j] += -2. * (f_double_K * QK + f_double_E * QE) * N * wt * tau * log(tau);
+
+				}
+			}
+			/*============= regular tau to 1 =============*/
+			for (int l = 0; l < nqd_regular; l++) {
+				const double &ab = Numeric::qd_GL_x[nqd_regular][l];
+				qdx[l] = tau + (1. - tau) * ab;
+			}
+			e.init(_sp, idElement, nqd_regular, qdx);
+			for (int k = 0; k < nqd_regular; k++) {
+				const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+				const double &ab = qdx[k], &wt = Numeric::qd_GL_w[nqd_regular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, RK, RE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				RK = RKE(PK, QK, m, ab, tau);
+				RE = RKE(PE, QE, m, ab, tau);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = e.basis()[j][k];
+					output[j] += f_single_K * RK * N * wt * (1. - tau);
+					output[j] += -2. * f_single_K * QK * N * wt * (1. - tau) * log(1. - tau);
+					output[o + 1 + j] += (f_double_K * RK + f_double_E * RE) * N * wt * (1. - tau) ;
+					output[o + 1 + j] += -2. * (f_double_K * QK + f_double_E * QE) * N * wt * (1. - tau) * log(1. - tau);
+
+				}
+			}
+			/*============= switch a new pointer  =============*/
+			delete[] qdx;
+			qdx = NULL;
+			qdx = new double[nqd_singular];
+			/*============= singular 0 to tau  =============*/			
+			for (int l = 0; l < nqd_singular; l++) {
+				const double &ab = Numeric::qd_LOG_x[nqd_singular][l];
+				qdx[l] = tau * (1. - ab);
+			}
+			e.init(_sp, idElement, nqd_singular, qdx);
+			for (int k = 0; k < nqd_singular; k++) {
+				const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+				const double &wt = Numeric::qd_LOG_w[nqd_singular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = e.basis()[j][k];
+					output[j] += 2. * f_single_K * QK * N * wt * tau;
+					output[o + 1 + j] += 2. * (f_double_K * QK + f_double_E * QE) * N * wt * tau;
+				}
+			}
+			/*============= singular tau to 1  =============*/
+			for (int l = 0; l < nqd_singular; l++) {
+				const double &ab = Numeric::qd_LOG_x[nqd_singular][l];
+				qdx[l] = tau + (1. - tau) * ab;
+			}
+			e.init(_sp, idElement, nqd_singular, qdx);
+			for (int k = 0; k < nqd_singular; k++) {
+				const double &r = e.r()[k], &z = e.z()[k], &dr = e.dr()[k], &dz = e.dz()[k], &J = e.J()[k];
+				const double &wt = Numeric::qd_LOG_w[nqd_singular][k];
+				double a, b, m, K, E, PK, QK, PE, QE, f_single_K, f_double_K, f_double_E;
+				abm(rp, zp, r, z, a, b, m);
+				Numeric::KEPQ(m, K, E, PK, QK, PE, QE);
+				fKE(rp, zp, r, z, dr, dz, J, a, b, f_single_K, f_double_K, f_double_E);
+				for (int j = 0; j <= o; j++) {
+					const double &N = e.basis()[j][k];
+					output[j] += 2. * f_single_K * QK * N * wt * ( 1. - tau);
+					output[o + 1 + j] += 2. * (f_double_K * QK + f_double_E * QE) * N * wt * (1. - tau);
+				}
+			}
+
+
+
+
+
+			
+			//*============ free memory 
+			delete[] qdx;
+			qdx = NULL;
+
+			
+
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	
 
 
 
 		break;
+
+
 	}
+
+
+
+
+
 	/*case 2: {//printf("tau %1.5f\t %04d\n", tau, idElement);
 		if (abs(tau) < 1e-14 || abs(1.0 - tau) < 1e-14) {
 			qd = Element::getGLQuad(nqd_regular);
@@ -440,10 +563,7 @@ const std::vector<double > Bem::singular(double tau, int idElement) {
 	*/
 	
 	}
-
-	
-	
-	
+		
 	
 	/*qd = Element::getLogQuad(nqd_singular);
 	qd.row(0).array() = tau + (1. - 2.*tau) *qd.row(0).array();
@@ -466,6 +586,22 @@ const std::vector<double > Bem::singular(double tau, int idElement) {
 
 //------------helper functions -------------
 
+void Bem::abm(double rp, double zp, double r, double z, double &a, double &b, double &m) {
+	a = r * r + rp * rp + (zp - z) * (zp - z);
+	b = 2. * rp * r;
+	m = 2. * b / (a + b);
+};
+
+double Bem::RKE(double P, double Q, double m, double t, double tau) {
+	return P - Q * log((1. - m) / (t * t  - 2 * tau * t + tau * tau));
+};
+
+void Bem::fKE(double rp, double zp, double r, double z, double dr, double dz, double J, double a, double b,
+	double &f_single_K, double &f_double_K, double &f_double_E) {
+	f_single_K = r * J / M_PI / sqrt(a + b);
+	f_double_K = dz / 2. / M_PI / sqrt(a + b);
+	f_double_E = ((dr * (zp - z) - dz * (rp - r)) * r / (a - b) - dz / 2.) / M_PI / sqrt(a + b);
+};
 
 //------------properties -------------
 
@@ -501,4 +637,4 @@ void Bem::Properties::print() const {
 }
 
 double Bem::Properties::_timer = 0;
-const double Bem::eps = 1E-12;
+const double Bem::eps = 1E-14;

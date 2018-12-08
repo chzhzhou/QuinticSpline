@@ -3,7 +3,7 @@
 #include "numeric.h"
 
 void Element::init(const Spline &sp, int i, int o, int nqd) {	
-	_arc = sp.localArc(i,1.0);	
+	_arc = sp.localArc(i);	
 	_order = o;	
 	_t.resize(o + 1);	
 	_t[1] = sp.arc2t(i, 0.5 * _arc);
@@ -38,11 +38,15 @@ void Element::init(const Spline &sp, int i, int o, int nqd) {
 
 Element::Element(const Element &e) {	
 	_arc = e.arc();
-	_t = e.t();	
+	//_t = e.t();	
+	_t.resize(e.t().size());
+	for (int i = 0; i < e.t().size(); i++) {
+		_t[i] = e.t()[i];
+	}
 	_order = e.order();
 };
 
-void Element::init(const Spline &sp, int i, int nqd, const std::vector<double> & qdx) {
+void Element::init(const Spline &sp, int i, int nqd, double const * qdx) {
 	int o = order(); 
 	_r.resize(nqd);
 	_dr.resize(nqd);

@@ -30,15 +30,19 @@ public:
 
 
 private:
-
 	// the real data
-	std::vector<Element> _e;
-	//Eigen::MatrixX3d _r, _z;
+	std::vector<Element> _e;	
 	Node  _node;
 	Spline _sp;
 	// under the hood
 	static const double eps;	
 	void setrz();
+	static void abm(double rp, double zp, double r, double z,	double &a, double &b, double &m	);
+	static double RKE(double P, double Q, double m, double t, double tau);
+	static void fKE(
+		double rp, double zp, double r, double z, double dr, double dz, double J, double a, double b,
+		double &f_single_K, double &f_double_K, double &f_double_E
+	);
 
 public:	
 	struct Properties {		
@@ -59,10 +63,10 @@ public:
 			yBC.end.set(Spline::BC::Even, 0, 0);
 		};
 		bc xBC , yBC;
-		const int &nElm() { return _nElm; };
-		const int &order() { return _order; };
-		const int &qdOrder() { return _qdOrder; };
-		const int &indexShift() { return _indexShift; };
+		const int &nElm() const{ return _nElm; };
+		const int &order() const { return _order; };
+		const int &qdOrder() const { return _qdOrder; };
+		const int &indexShift() const { return _indexShift; };
 		void indexShift(int i) { _indexShift = i; };			
 		void qdOrder(int i) { _qdOrder = i; };
 		void order(int i) { _order = i; };

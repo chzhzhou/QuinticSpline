@@ -210,7 +210,7 @@ double Spline::localArc(int i, double t, int nqd) const {
 		double arc = 0;
 		for (int k = 0; k < nqd; k++) {
 			double ab = t * qdx[k];
-			arc = arc + qdw[k] * sqrt(pow((d(_x, i, ab))(1),2.0) + pow((d(_y, i, ab))(1), 2.0));
+			arc += qdw[k] * sqrt(pow((d(_x, i, ab))(1),2.0) + pow((d(_y, i, ab))(1), 2.0));
 		}		
 		return t * arc;		
 	}
@@ -222,12 +222,15 @@ double Spline::localArc(int i, double t, int nqd) const {
 
 double Spline::arc2t(int i, double arc, int nqd) const {
 	double x0 = 0.5;
-	double epsilon = 2.e-15;
+	double epsilon = 4.e-15;
 	double f0 = localArc(i, x0, nqd) - arc;
+	int counter = 0;
 	while (abs(f0) > epsilon ) {
 		double df0 = sqrt(pow((d(_x, i, x0))(1), 2.0) + pow((d(_y, i, x0))(1), 2.0));
 		x0 = x0 - f0 / df0;
 		f0 = localArc(i, x0, nqd) - arc;
+		counter++;
+		if (counter > 10) { printf("wtf"); }
 	}
 	return x0;
 };
