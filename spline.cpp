@@ -220,9 +220,9 @@ double Spline::localArc(int i, double t, int nqd) const {
 	}
 };
 
-double Spline::arc2t(int i, double arc, int nqd) const {
+double Spline::arc2t(int i, double arc, double eps, int nqd) const {
 	double x0 = 0.5;
-	double epsilon = 4.e-15;
+	double epsilon = eps;
 	double f0 = localArc(i, x0, nqd) - arc;
 	int counter = 0;
 	while (abs(f0) > epsilon ) {
@@ -230,7 +230,7 @@ double Spline::arc2t(int i, double arc, int nqd) const {
 		x0 = x0 - f0 / df0;
 		f0 = localArc(i, x0, nqd) - arc;
 		counter++;
-		if (counter > 10) { printf("wtf"); }
+		if (counter > 10) { printf("arc2t not converging .. try lowering error tolerance"); }
 	}
 	return x0;
 };

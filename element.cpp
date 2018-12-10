@@ -55,9 +55,7 @@ void Element::init(const Spline &sp, int i, int nqd, double const * qdx) {
 	_J.resize(nqd);
 	_xi.resize(nqd);
 	_basis.resize(o + 1);
-	for (auto & member : _basis) {
-		member.resize(nqd);
-	};
+	for (auto & member : _basis) {	member.resize(nqd);	};
 
 	for (int k = 0; k < nqd; k++) {
 		double tt = qdx[k];
@@ -73,7 +71,6 @@ void Element::init(const Spline &sp, int i, int nqd, double const * qdx) {
 			_basis[j][k] = Numeric::N[o][j](_xi[k]);
 		}
 	}
-
 }
 
 

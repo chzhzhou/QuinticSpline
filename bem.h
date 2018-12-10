@@ -22,10 +22,10 @@ public:
 	//const Eigen::MatrixX3d &r() const { return _r; };
 	//const Eigen::MatrixX3d &z() const { return _z; };
 	const Node &node() const { return _node; };
-	const std::vector<double > regular(double rp, double zp, int idElement);
-	const std::vector<double > axis(double zp, int idElement);
-	const std::vector<double > singular(double tau, int idElement);
-	void assembly(Eigen::MatrixXd &S, Eigen::MatrixXd &D);	
+	const std::vector<double > regular (double rp, double zp, int idElement) const;
+	const std::vector<double > axis (double zp, int idElement) const;
+	const std::vector<double > singular (double tau, int idElement) const;
+	static void assembly(const Bem &source, const Bem &reciever,  Eigen::MatrixXd &S, Eigen::MatrixXd &D);	
 
 
 
@@ -43,6 +43,8 @@ private:
 		double rp, double zp, double r, double z, double dr, double dz, double J, double a, double b,
 		double &f_single_K, double &f_double_K, double &f_double_E
 	);
+	static int checkBounbdaryPosition(const Bem &bem0, const Bem &bem1);
+
 
 public:	
 	struct Properties {		
@@ -72,8 +74,8 @@ public:
 		void order(int i) { _order = i; };
 		void nElm(int i) { _nElm = i; };
 		void print() const;
-		static void tic() { printf("tic\n"); _timer = omp_get_wtime(); };
-		static void toc() { printf("toc ... %.2e sec\n", omp_get_wtime() - _timer); };
+		static void tic();
+		static void toc(); 
 	private:
 		int _nElm = 0;
 		//default
