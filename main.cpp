@@ -42,8 +42,14 @@ double phin(double nr, double nz, double r, double z) {
 	//double x = z / sqrt(r*r + z * z);
 	return nr * (-r) + nz * (2. * z);
 }
+double curv(double r, double z ,double dr, double dz, double ddr, double ddz) {
+	return	(dr * ddz - dz * ddr) / pow(dr * dr + dz * dz, 1.5);
+}
+double curvAnalytic(double theta) {
+	return
+		(6. * sqrt(2.)*(-75. + 176. * cos(8. * theta) + 21. * cos(16. * theta))) / pow(97. - 16. * cos(8. * theta) - 63. * cos(16. * theta), 1.5);
+	}
 
-//nr.array() * (-r.array())  + nz.array() * (2. * z.array()))
 
 void printSpline(const Spline &sp, const std::string &name) {
 	std::ofstream file(name);	
@@ -55,13 +61,13 @@ int main() {
 	int n = 11;
 	int ntest = 2;
 
-	for (int global = 7; global < 20; global++) {
+	for (int global = 7; global < 22; global++) {
 		n = (int)pow(sqrt(2.0), global) + 1;
 		//n = (int)pow(2.0, 9) + 1;
 		Eigen::MatrixX2d xy0 = circle(M_PI/2, n);
 		Bem bem0;
 		bem0.settings.indexShift(0);
-		bem0.settings.order(2);
+		bem0.settings.order(1);
 		bem0.settings.qdOrder(20);
 		bem0.settings.xBC.end.set(Spline::BC::Even,0,0);		
 		bem0.settings.yBC.end.set(Spline::BC::Odd,0,0);
@@ -73,7 +79,7 @@ int main() {
 		Eigen::MatrixX2d xy1 = line(xy0(xy0.rows() - 1, 0 ), xy0(xy0.rows() - 1, 1), 0.0, 0.0,  n );
 		Bem bem1;
 		bem1.settings.indexShift(bem0.node().r.rows() );
-		bem1.settings.order(2);
+		bem1.settings.order(1);
 		bem1.settings.qdOrder(20);
 		bem1.settings.xBC.end.set(Spline::BC::Odd, 0, 0);		
 		bem1.settings.yBC.end.set(Spline::BC::Even, 0, 0);
@@ -97,31 +103,30 @@ int main() {
 
 
 		std::cout.precision(15);
-		Bem::assembly(bem0, bem0, S, D);						
-		//std::cout << "\n--------------\n";
-		Bem::assembly(bem0, bem1, S, D);				
-		//std::cout << "\n--------------\n";
-		Bem::assembly(bem1, bem0, S, D);
-		//std::cout << "\n--------------\n";
-	    Bem::assembly(bem1, bem1, S, D);
-		//std::cout << "\n--------------\n";
+		Bem::assembly(bem0, bem0, S, D);								
+		Bem::assembly(bem0, bem1, S, D);						
+		Bem::assembly(bem1, bem0, S, D);		
+	    Bem::assembly(bem1, bem1, S, D);		
 		
 		D = D + B;		
 		//std::cout << (D).rowwise().sum() << std::endl;
-		std::cout.precision(3);
-		//std::cout << D.row(11)- D.row(12) <<std::endl;
-		//std::cout <<  <<std::endl;
-		Eigen::VectorXd rhs, lhs;
+				
+		Eigen::VectorXd rhs, lhs, errorCurvature;
 		rhs.setZero(nTotal);
 		lhs.setZero(nTotal);
+		errorCurvature.setZero(nTotal);
+		
 		for (int k = 0; k < nTotal; k++) {
 			if (k < n0) {
-				double r = bem0.node().r(k, 0), dr = bem0.node().r(k, 1);
-				double z = bem0.node().z(k, 0), dz = bem0.node().z(k, 1);
+				double r = bem0.node().r(k, 0), dr = bem0.node().r(k, 1), ddr = bem0.node().r(k, 2);
+				double z = bem0.node().z(k, 0), dz = bem0.node().z(k, 1), ddz = bem0.node().z(k, 2);
+				//std::cout << ddz <<std::endl;
 				double nr = -dz / sqrt(dr * dr + dz * dz);
 				double nz = dr / sqrt(dr * dr + dz * dz);				
 				rhs(k) = phin(nr,nz,r,z);
 				lhs(k) = phi(r, z);
+				errorCurvature(k) = curvAnalytic(acos(z / sqrt(r *r + z * z)))-  curv(r, z, dr, dz, ddr, ddz);
+					
 			}
 			else {
 				int kk = k - n0;
@@ -131,6 +136,7 @@ int main() {
 				double nz = dr / sqrt(dr * dr + dz * dz);
 				rhs(k) = phi(r, z);
 				lhs(k) = phin(nr, nz, r, z);
+				
 
 			}
 		}
@@ -152,7 +158,7 @@ int main() {
 		R.bottomRightCorner(n1, n1) = -D.bottomRightCorner(n1, n1);
 
 		
-		//std::cout << L.row(n0 - 1);
+		//std::cout << curvAna;
 
 		//std::cout << "\n--------------\n";
 		//std::cout << R.row(n0 - 1);
@@ -175,7 +181,11 @@ int main() {
 			errorNeumann(kk) = answer(n0 + kk) - rhs(n0 + kk);
 		}
 
-		printf("{%04d, %16.16f},\n", 2*n, (errorDirchlet	).cwiseAbs().maxCoeff());
+		printf("{%04d, %16.16f, %16.16f, %16.16f},\n", nTotal,
+			(errorDirchlet).cwiseAbs().maxCoeff(),
+			(errorNeumann).cwiseAbs().maxCoeff(),
+			(errorCurvature).cwiseAbs().maxCoeff()
+		);
 
 #ifdef TEST1
 

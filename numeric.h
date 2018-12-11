@@ -1,7 +1,9 @@
 #pragma once
 #ifndef NUMERIC_H
 #define NUMERIC_H
-
+#ifndef M_PI
+#define M_PI   3.14159265358979323846264338327950288
+#endif // !M_PI
 
 class Numeric {
 public:
@@ -12,6 +14,9 @@ public:
 	static void KEPQ(double m, double &K, double &E, double &KP, double &KQ, double &EP, double &EQ);
 	static void KEPQ(double m, double &K, double &E);
 	static double(**N[3])(double);
+	static double legendreP(int l, double x);
+	static double legendreP(int l, int d, double x);
+
 	template<class T>
 	static constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
 		return v<= lo ? lo : v>= hi ? hi : v;
