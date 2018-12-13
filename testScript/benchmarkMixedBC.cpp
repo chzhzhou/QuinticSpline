@@ -1,12 +1,10 @@
 #include "stdafx.h"
 #include "numeric.h"
 #include "bem.h"
-#include "taylorCone.h"
 #include <omp.h>
 #include <Eigen/Dense>
 //#define COMPUTE
 //#define TEST1
-//#define TEST2
 
 Eigen::IOFormat fmt(Eigen::FullPrecision, 0, "\t", "\n", "", "", "", "");
 Eigen::MatrixX2d circle(double angle0, double angle1, int n) {
@@ -69,64 +67,6 @@ void printSpline(const Spline &sp, const std::string &name) {
 }
 
 int main() {
-	TaylorCone tc;
-	tc.computeCoefabc(-0.5, 0);
-	std::cout << tc.c[0] << "\t" << tc.c[1] << "\t" << tc.c[2] << "\t" << tc.c[3] << "\t" << tc.c[4] << "\n";
-	
-	tc._xy0 = TaylorCone::generateCone(4.,50.,tc.c,201);
-	tc._xy1 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 1, 101);
-	tc._xy2 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 0, (int)(101*2.28));
-	double dx, ddx, dy, ddy;
-	// ------------------------------------
-	tc.bem0.settings.indexShift(0);
-	tc.bem0.settings.order(2);
-	tc.bem0.settings.qdOrder(20);
-	tc.bem0.settings.xBC.begin.set(Spline::BC::Odd, 0., 0.);
-	tc.bem0.settings.yBC.begin.set(Spline::BC::Even, 0., 0.);
-	TaylorCone::coneDerivativeEnd(tc._xy0, tc.c, dx, ddx, dy, ddy);
-	tc.bem0.settings.xBC.end.set(Spline::BC::Mix, dx, ddx);
-	tc.bem0.settings.yBC.end.set(Spline::BC::Mix, dy, ddy);
-	tc.bem0.initialize(tc._xy0);
-	printSpline(tc.bem0.sp(), "./Output/sp0.txt");
-
-	// ------------------------------------
-	tc.bem1.settings.indexShift(0);
-	tc.bem1.settings.order(2);
-	tc.bem1.settings.qdOrder(20);
-	tc.bem1.settings.xBC.end.set(Spline::BC::Odd, 0., 0.);
-	tc.bem1.settings.yBC.end.set(Spline::BC::Even, 0., 0.);
-	TaylorCone::circleDerivativeBegin(tc._xy1, dx, ddx, dy, ddy);
-	tc.bem1.settings.xBC.begin.set(Spline::BC::Mix, dx, ddx);
-	tc.bem1.settings.yBC.begin.set(Spline::BC::Mix, dy, ddy);
-	tc.bem1.initialize(tc._xy1);
-	printSpline(tc.bem1.sp(), "./Output/sp1.txt");
-	//-------------------------------------
-	tc.bem2.settings.indexShift(0);
-	tc.bem2.settings.order(2);
-	tc.bem2.settings.qdOrder(20);
-	tc.bem2.settings.xBC.end.set(Spline::BC::Odd, 0., 0.);
-	tc.bem2.settings.yBC.end.set(Spline::BC::Even, 0., 0.);	
-	TaylorCone::circleDerivativeBegin(tc._xy2, dx, ddx, dy, ddy);
-	tc.bem2.settings.xBC.begin.set(Spline::BC::Mix, dx, ddx);
-	tc.bem2.settings.yBC.begin.set(Spline::BC::Mix, dy, ddy);
-	tc.bem2.initialize(tc._xy2);	
-	printSpline(tc.bem2.sp(), "./Output/sp2.txt");	
-	
-	
-
-	
-	//std::ofstream file("./Output/xy0.txt");
-	//file << tc._xy0 << '\n';
-	//file.close();
-	//file.open("./Output/xy1.txt");
-	//file << tc._xy1 << '\n';
-	//file.close();
-	//file.open("./Output/xy2.txt");
-	//file << tc._xy2 << '\n';
-	//file.close();
-
-
-#ifdef TEST1
 	int elementOrder = 2;
 	for (int global = 7; global < 21; global++) {
 		int n = (int)pow(sqrt(2.0), global) + 1;		
@@ -223,8 +163,7 @@ int main() {
 			errorNeumann.cwiseAbs().maxCoeff(), 
 			errorCurvature.cwiseAbs().maxCoeff()
 		);
-}
-#endif // TEST2
+
 #ifdef TEST1
 
 		Eigen::MatrixX2d xy0 = circle(M_PI, n);
@@ -313,7 +252,7 @@ int main() {
 #endif // COMPUTE
 		
 		
-
+	}	
 	return 0;
 }
 
