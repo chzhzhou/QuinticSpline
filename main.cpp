@@ -69,53 +69,57 @@ void printSpline(const Spline &sp, const std::string &name) {
 }
 
 int main() {
-	TaylorCone tc;
-	tc.computeCoefabc(-0.5, 0);
-	std::cout << tc.c[0] << "\t" << tc.c[1] << "\t" << tc.c[2] << "\t" << tc.c[3] << "\t" << tc.c[4] << "\n";
-	
-	tc._xy0 = TaylorCone::generateCone(4.,50.,tc.c,201);
-	tc._xy1 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 1, 101);
-	tc._xy2 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 0, (int)(101*2.28));
-	double dx, ddx, dy, ddy;
-	// ------------------------------------
-	tc.bem0.settings.indexShift(0);
-	tc.bem0.settings.order(2);
-	tc.bem0.settings.qdOrder(20);
-	tc.bem0.settings.xBC.begin.set(Spline::BC::Odd, 0., 0.);
-	tc.bem0.settings.yBC.begin.set(Spline::BC::Even, 0., 0.);
-	TaylorCone::coneDerivativeEnd(tc._xy0, tc.c, dx, ddx, dy, ddy);
-	tc.bem0.settings.xBC.end.set(Spline::BC::Mix, dx, ddx);
-	tc.bem0.settings.yBC.end.set(Spline::BC::Mix, dy, ddy);
-	tc.bem0.initialize(tc._xy0);
+	TaylorCone tc(-0.5,0.0);	
+	//std::cout << tc.c[0] << "\t" << tc.c[1] << "\t" << tc.c[2] << "\t" << tc.c[3] << "\t" << tc.c[4] << "\n";
+	int nConeKnots = 80 + 1;	
+	int nElectricKnots = (int)floor((nConeKnots - 1) * 0.86) + 1;
+	int nVelocityKnots = (int)floor((nConeKnots - 1) * 2.28) + 1;
+	tc._xy0 = TaylorCone::generateCone(3.5,50.,tc.c, nConeKnots);
+	tc._xy1 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 1, (int)(nElectricKnots));
+	tc._xy2 = TaylorCone::generateCircle(tc._xy0(tc._xy0.rows() - 1, 0), tc._xy0(tc._xy0.rows() - 1, 1), 0, (int)(nVelocityKnots));
+
+	tc.prepareBem(0, tc._xy0, 0, tc.bem0);
+	int n0 = tc.bem0.node().r.rows();
 	printSpline(tc.bem0.sp(), "./Output/sp0.txt");
 
-	// ------------------------------------
-	tc.bem1.settings.indexShift(0);
-	tc.bem1.settings.order(2);
-	tc.bem1.settings.qdOrder(20);
-	tc.bem1.settings.xBC.end.set(Spline::BC::Odd, 0., 0.);
-	tc.bem1.settings.yBC.end.set(Spline::BC::Even, 0., 0.);
-	TaylorCone::circleDerivativeBegin(tc._xy1, dx, ddx, dy, ddy);
-	tc.bem1.settings.xBC.begin.set(Spline::BC::Mix, dx, ddx);
-	tc.bem1.settings.yBC.begin.set(Spline::BC::Mix, dy, ddy);
-	tc.bem1.initialize(tc._xy1);
+	tc.prepareBem(1, tc._xy1, n0, tc.bem1);
+	int n1 = tc.bem1.node().r.rows();
 	printSpline(tc.bem1.sp(), "./Output/sp1.txt");
-	//-------------------------------------
-	tc.bem2.settings.indexShift(0);
-	tc.bem2.settings.order(2);
-	tc.bem2.settings.qdOrder(20);
-	tc.bem2.settings.xBC.end.set(Spline::BC::Odd, 0., 0.);
-	tc.bem2.settings.yBC.end.set(Spline::BC::Even, 0., 0.);	
-	TaylorCone::circleDerivativeBegin(tc._xy2, dx, ddx, dy, ddy);
-	tc.bem2.settings.xBC.begin.set(Spline::BC::Mix, dx, ddx);
-	tc.bem2.settings.yBC.begin.set(Spline::BC::Mix, dy, ddy);
-	tc.bem2.initialize(tc._xy2);	
-	printSpline(tc.bem2.sp(), "./Output/sp2.txt");	
-	
-	
 
+	tc.prepareBem(2, tc._xy2, n0, tc.bem2);
+	int n2 = tc.bem2.node().r.rows();
+	printSpline(tc.bem2.sp(), "./Output/sp2.txt");	
+	// ------------------------------------
+	Eigen::MatrixXd S, D, L, R;
+	int nTotal = n0 + n1;
+	S.setZero(nTotal, nTotal);	D.setZero(nTotal, nTotal);
+	R.setZero(nTotal, nTotal);	L.setZero(nTotal, nTotal);
+	Bem::Properties::tic();
+	Bem::assembly(tc.bem0, tc.bem0, S, D);	Bem::assembly(tc.bem0, tc.bem1, S, D);
+	Bem::assembly(tc.bem1, tc.bem0, S, D);	Bem::assembly(tc.bem1, tc.bem1, S, D);	
+	Bem::Properties::toc();
+	//std::cout << D.rowwise().sum();	
+
+	Eigen::VectorXd rhs, lhs;
+	tc.setFluidBC(tc.bem0, tc.bem1, rhs);
+
+	for (int i = 0; i < D.rows(); i++) {
+		D(i, i) = -(D.row(i).sum() - D(i, i));
+	}
+
+	D.row(n0 - 1) *= 0.;
+	D(n0 - 1, n0 - 1) = 1.0;
+	D(n0 - 1, n0) = -1.0;
+	S.row(n0 - 1) *= 0.;
 	
-	//std::ofstream file("./Output/xy0.txt");
+	TaylorCone::SD2LR(S, D, n0, L, R);
+
+	Eigen::VectorXd answer = L.fullPivLu().solve(R*rhs);	
+	std::ofstream file("./Output/answer0.txt");
+	for (int k = 0; k < n0; k++) {	file << tc.bem0.node().r(k,0) <<'\t' << answer(k) << '\n';	}	
+	file.close();
+
+	//file.open("./Output/xy0.txt");
 	//file << tc._xy0 << '\n';
 	//file.close();
 	//file.open("./Output/xy1.txt");

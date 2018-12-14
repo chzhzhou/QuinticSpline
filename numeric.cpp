@@ -91,6 +91,7 @@ double Numeric::legendreP(int l, int d, double x) {
 		}
 	}
 	else {
+		printf("Order %d / %d not supported\n", l, d);
 		return legendreP(l, x);
 	}
 };
